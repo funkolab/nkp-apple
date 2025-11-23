@@ -1,0 +1,47 @@
+version: 2
+
+before:
+  hooks:
+    - go mod download
+
+builds:
+  - main: main.go
+    binary: nkp-apple
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/funkolab/nkp-apple/pkg/version.Version={{.Version}}
+      - -X github.com/funkolab/nkp-apple/pkg/version.Commit={{.ShortCommit}}
+      - -X github.com/funkolab/nkp-apple/pkg/version.Date={{.Date}}
+      - -X github.com/funkolab/nkp-apple/pkg/version.BuiltBy=GoReleaser
+      - -X github.com/funkolab/nkp-apple/pkg/version.OsName={{.Os}}
+      - -X github.com/funkolab/nkp-apple/pkg/version.PlatformName={{.Arch}}
+
+archives:
+  - name_template: "{{ .ProjectName }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    wrap_in_directory: false
+    files:
+      - LICENSE
+      - README.md
+
+# Homebrew
+brews:
+  - repository:
+      owner: funkolab
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.FUNKOLAB_BOT_PAT }}"
+    commit_author:
+      name: funkolab
+      email: reg-github@geo6.net
+    directory: Formula
+    homepage: https://github.com/funkolab/nkp-apple
+    description: A tool to manage Nutanix NKP cluster using Apple container runtime
+    test: |
+      system "#{bin}/nkp-apple version"

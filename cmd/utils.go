@@ -22,10 +22,10 @@ import (
 	"time"
 )
 
-// displaySpinner shows a spinning animation with the given message.
+// DisplaySpinner shows a spinning animation with the given message.
 // It returns a channel that should be closed to stop the spinner.
 // When closed, it displays a green checkmark and the message.
-func displaySpinner(message string) chan struct{} {
+func DisplaySpinner(message string) chan struct{} {
 	spinChars := []rune{'⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'}
 	done := make(chan struct{})
 

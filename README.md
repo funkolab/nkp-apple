@@ -1,6 +1,6 @@
 # nkp-apple
 
-A command-line tool to create and manage Kubernetes NKP (Nutanix Kubernetes Platform) clusters using Apple's container runtime on macOS.
+A command-line tool to create and manage Kubernetes NKP (Nutanix Kubernetes Platform) clusters using Apple container runtime on macOS.
 
 ## Overview
 
@@ -14,6 +14,34 @@ A command-line tool to create and manage Kubernetes NKP (Nutanix Kubernetes Plat
 - Go 1.25.4 or later (for building from source)
 
 ## Installation
+
+There are several installation options:
+
+- As Homebrew or Linuxbrew package
+- Manual installation
+
+After installing, the tool will be available as `nkp-apple`.
+
+### Homebrew Package
+
+You can install with [Homebrew](https://brew.sh)
+
+```sh
+brew install funkolab/tap/nkp-apple
+```
+
+Keep up-to-date with `brew upgrade nkp-apple` (or `brew upgrade` to upgrade everything)
+
+### Manual
+
+ - Download your corresponding [release](https://github.com/funkolab/nkp-apple/releases)
+ - Install the binary somewhere in your PATH (`/usr/local/bin` for example)
+ - use it with `nkp-apple`
+
+***MacOS X notes for security error***
+
+ Depending on your OS settings, when installing the binary manually you must run the following command:
+ `xattr -r -d com.apple.quarantine /usr/local/bin/nkp-apple`
 
 ### From Source
 
@@ -47,7 +75,7 @@ This command will:
 - Initialize a Kubernetes cluster using kubeadm
 - Configure networking with CNI (pod CIDR: 10.244.0.0/16)
 - Set up storage class
-- Export kubeconfig to `~/.kube/konvoy-capi-bootstrapper.conf`
+- Export kubeconfig to `~/.kube/config`
 
 ### Creating a Kubernetes Cluster
 
@@ -69,11 +97,8 @@ Supported platforms:
 
 For self-managed clusters, add the `--self-managed` flag:
 
-```bash
-nkp-apple create cluster vsphere --self-managed [additional-flags]
-```
+Other flags are passed directly with the nkp command in the background.
 
-This will automatically create a bootstrap cluster first, then create your target cluster.
 
 ### Deleting a Bootstrap Cluster
 
@@ -92,7 +117,7 @@ This command will:
 Delete a Kubernetes cluster:
 
 ```bash
-nkp-apple delete cluster [cluster-name] [flags]
+nkp-apple delete cluster -c [cluster-name] --kubeconfig xxx [--self-managed]
 ```
 
 ## Configuration
@@ -100,44 +125,10 @@ nkp-apple delete cluster [cluster-name] [flags]
 The tool uses the following default configurations:
 
 - **Node Name**: `konvoy-capi-bootstrapper-control-plane`
-- **Node Image**: `docker.io/mesosphere/konvoy-bootstrap:v2.16.1`
+- **Node Image**: `docker.io/mesosphere/konvoy-bootstrap:nkp-version`
 - **Pod CIDR**: `10.244.0.0/16`
 - **Memory**: 8GB allocated to bootstrap container
 - **API Server Port**: 6443 (mapped to localhost)
-
-## Examples
-
-### Create a self-managed vSphere cluster
-
-```bash
-nkp-apple create cluster vsphere \
-  --self-managed \
-  --cluster-name=my-cluster \
-  --control-plane-endpoint-host=192.168.1.100 \
-  --datacenter=MyDatacenter \
-  --datastore=MyDatastore \
-  --folder=/MyFolder \
-  --network=VM-Network \
-  --resource-pool=MyResourcePool \
-  --server=vcenter.example.com \
-  --ssh-public-key-file=~/.ssh/id_rsa.pub \
-  --template=/MyTemplates/ubuntu-2004-kube-v1.28.7 \
-  --virtual-ip-interface=eth0
-```
-
-### Create and use bootstrap cluster manually
-
-```bash
-# Create bootstrap cluster
-nkp-apple create bootstrap
-
-# Use the kubeconfig
-export KUBECONFIG=~/.kube/konvoy-capi-bootstrapper.conf
-kubectl get nodes
-
-# When done, clean up
-nkp-apple delete bootstrap
-```
 
 ## Architecture
 
@@ -145,7 +136,7 @@ The tool wraps the NKP CLI and manages the lifecycle of a local Kubernetes boots
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions and feedback are welcome! Please feel free to submit a Pull Request.
 
 ## Support
 

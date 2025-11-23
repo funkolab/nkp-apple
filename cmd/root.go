@@ -23,7 +23,7 @@ import (
 
 const (
 	nodeName  = "konvoy-capi-bootstrapper-control-plane"
-	nodeImage = "docker.io/mesosphere/konvoy-bootstrap:v2.16.1"
+	nodeImage = "docker.io/mesosphere/konvoy-bootstrap:%s"
 	podCIDR   = "10.244.0.0/16"
 )
 
@@ -47,13 +47,7 @@ func Execute() {
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
-
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.nkp-apple.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Example: rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.nkp-apple.yaml)")
 }

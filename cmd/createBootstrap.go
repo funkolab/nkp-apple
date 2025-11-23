@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -37,31 +38,54 @@ var createBootstrapCmd = &cobra.Command{
 
 func init() {
 	createCmd.AddCommand(createBootstrapCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// createBootstrapCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// createBootstrapCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
 func createBootstrap() error {
 
+	// Find nkp version
+	spinner := DisplaySpinner("Checking nkp version...")
+	versionCmd := exec.Command("nkp", "version")
+	versionOutput, err := versionCmd.Output()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to get nkp version: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Extract version from the line starting with "nkp:"
+	nkpVersion := ""
+	lines := strings.Split(string(versionOutput), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "nkp:") {
+			parts := strings.Split(line, ":")
+			if len(parts) >= 2 {
+				nkpVersion = strings.TrimSpace(parts[1])
+				break
+			}
+		}
+	}
+
+	close(spinner)
+	time.Sleep(500 * time.Millisecond)
+
+	fmt.Printf("   ... %s ...\n", nkpVersion)
+
+	// Test if bootstrap cluster already exists
+	myCmd := exec.Command("container", "exec", nodeName, "hostname")
+	if err := runCommand(myCmd, false); err == nil {
+		cobra.CheckErr(fmt.Errorf("bootstrap cluster already exists"))
+	}
+
 	// Run container
-	myCmd := exec.Command("container", "run",
+	myCmd = exec.Command("container", "run",
 		"-d",
 		"--name", nodeName,
 		"-m", "8G", "--disable-progress-updates",
 		"-e", "KUBECONFIG=/etc/kubernetes/admin.conf",
 		"-p", "127.0.0.1:6443:6443",
-		nodeImage,
+		fmt.Sprintf(nodeImage, nkpVersion),
 	)
 
-	spinner := displaySpinner("Creating a bootstrap cluster")
+	spinner = DisplaySpinner("Creating a bootstrap cluster")
 	if err := runCommand(myCmd, false); err != nil {
 		close(spinner)
 		return fmt.Errorf("failed to run container: %w", err)
@@ -130,9 +154,6 @@ func createBootstrap() error {
 	if err := runCommand(myCmd, true); err != nil {
 		return fmt.Errorf("failed to install NKP Capi components: %w", err)
 	}
-
-	// fmt.Println("=== Run the following command to configure kubectl ===")
-	// fmt.Printf("export KUBECONFIG=\"%s\"\n", kubeconfigPath)
 
 	return nil
 }

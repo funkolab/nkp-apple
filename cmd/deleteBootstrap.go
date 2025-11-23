@@ -41,7 +41,7 @@ func init() {
 
 func deleteBootstrap() error {
 
-	spinner := displaySpinner("Deleting bootstrap cluster")
+	spinner := DisplaySpinner("Deleting bootstrap cluster")
 	// Remove container
 	myCmd := exec.Command("container", "rm", "-f", nodeName)
 	_ = myCmd.Run() // Ignore errors

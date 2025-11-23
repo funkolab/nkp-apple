@@ -16,7 +16,10 @@ limitations under the License.
 package cmd
 
 import (
+	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 )
@@ -27,6 +30,8 @@ var createClusterCmd = &cobra.Command{
 	Short: "Create a Kubernetes cluster, one of [aks, aws, azure, eks, gcp, nutanix, preprovisioned, vsphere]",
 	Run: func(cmd *cobra.Command, args []string) {
 		selfManaged := false
+
+		// check for --self-managed flag
 		for i, arg := range args {
 			if arg == "--self-managed" {
 				selfManaged = true
@@ -35,16 +40,63 @@ var createClusterCmd = &cobra.Command{
 			}
 		}
 
+		// Search cluster-name in args
+		clusterName := ""
+		for i, arg := range args {
+			if (arg == "--cluster-name" || arg == "-c") && i+1 < len(args) {
+				clusterName = args[i+1]
+				break
+			}
+		}
+
+		// failed if no cluster-name provided
+		if clusterName == "" {
+			cobra.CheckErr(fmt.Errorf("cluster-name is required"))
+		}
+
+		// create bootstrap cluster if self-managed
 		if selfManaged {
 			err := createBootstrap()
 			cobra.CheckErr(err)
 
 		}
 
+		// create target cluster
 		cmdArgs := append([]string{"create", "cluster"}, args...)
 		myCmd := exec.Command("nkp", cmdArgs...)
-		// fmt.Printf("Executing command: %v\n", myCmd.String())
 		if err := runCommand(myCmd, true); err != nil {
+			cobra.CheckErr(err)
+		}
+
+		// retrieve kubeconfig for target cluster
+		myCmd = exec.Command("nkp", "get", "kubeconfig", "-c", clusterName)
+		output, err := myCmd.Output()
+		if err != nil {
+			cobra.CheckErr(fmt.Errorf("failed to get kubeconfig: %w", err))
+		}
+
+		kubeconfigPath := filepath.Join(".", fmt.Sprintf("%s.conf", clusterName))
+		if err := os.WriteFile(kubeconfigPath, output, 0600); err != nil {
+			cobra.CheckErr(err)
+		}
+
+		// Prepare self-managed cluster
+		if selfManaged {
+
+			// Install CAPI components on target cluster
+			myCmd = exec.Command("nkp", "create", "capi-components", "--kubeconfig", kubeconfigPath)
+			if err := runCommand(myCmd, true); err != nil {
+				cobra.CheckErr(err)
+			}
+
+			// Move CAPI objects to target cluster
+			myCmd = exec.Command("nkp", "move", "capi-resources", "--to-kubeconfig", kubeconfigPath)
+			if err := runCommand(myCmd, true); err != nil {
+				cobra.CheckErr(err)
+			}
+
+			// Delete bootstrap cluster
+			err := deleteBootstrap()
 			cobra.CheckErr(err)
 		}
 

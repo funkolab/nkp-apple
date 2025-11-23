@@ -16,41 +16,96 @@ limitations under the License.
 package cmd
 
 import (
+	"fmt"
+	"os"
 	"os/exec"
-	"time"
 
 	"github.com/spf13/cobra"
 )
 
 // deleteClusterCmd represents the deleteCluster command
 var deleteClusterCmd = &cobra.Command{
-	Use:   "cluster",
-	Short: "Delete a Kubernetes cluster",
+	Use:                "cluster",
+	Short:              "Delete a Kubernetes cluster",
+	DisableFlagParsing: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		clusterName, _ := cmd.Flags().GetString("cluster-name")
+		selfManaged := false
 
-		spinner := displaySpinner("Deleting cluster " + clusterName)
-		myCmd := exec.Command("nkp", "delete", "cluster", "-c", clusterName)
-		if err := runCommand(myCmd, false); err != nil {
-			close(spinner)
-			time.Sleep(500 * time.Millisecond)
-			cobra.CheckErr(err)
+		// check for --self-managed flag
+		for i, arg := range args {
+			if arg == "--self-managed" {
+				selfManaged = true
+				args = append(args[:i], args[i+1:]...)
+				break
+			}
 		}
-		close(spinner)
+
+		// Search cluster-name in args
+		clusterName := ""
+		for i, arg := range args {
+			if (arg == "--cluster-name" || arg == "-c") && i+1 < len(args) {
+				clusterName = args[i+1]
+				break
+			}
+		}
+
+		// failed if no cluster-name provided
+		if clusterName == "" {
+			cobra.CheckErr(fmt.Errorf("required flag \"cluster-name\" not set"))
+		}
+
+		// Search kubeconfig in args
+		kubeconfig := ""
+		for i, arg := range args {
+			if arg == "--kubeconfig" && i+1 < len(args) {
+				kubeconfig = args[i+1]
+				break
+			}
+		}
+
+		// failed if no kubeconfig provided
+		if kubeconfig == "" {
+			cobra.CheckErr(fmt.Errorf("required flag \"kubeconfig\" not set"))
+		}
+
+		// create bootstrap cluster if self-managed and move CAPI resources
+		if selfManaged {
+			err := createBootstrap()
+			cobra.CheckErr(err)
+
+			// move CAPI resources from target to bootstrap
+			homeDir, err := os.UserHomeDir()
+			cobra.CheckErr(err)
+			bootstrapKubeconfig := homeDir + "/.kube/config"
+			myCmd := exec.Command("nkp", "move", "capi-resources", "--from-kubeconfig", kubeconfig, "--to-kubeconfig", bootstrapKubeconfig)
+			if err := runCommand(myCmd, true); err != nil {
+				os.Exit(1)
+			}
+
+			// delete target cluster
+			myCmd = exec.Command("nkp", "delete", "cluster", "--cluster-name", clusterName, "--kubeconfig", bootstrapKubeconfig)
+			if err := runCommand(myCmd, true); err != nil {
+				os.Exit(1)
+			}
+
+			// delete bootstrap cluster
+			deleteBootstrap()
+
+			// delete kubeconfig target cluster
+			_ = os.Remove(kubeconfig) // Ignore errors
+
+		} else {
+			// delete target cluster
+			cmdArgs := append([]string{"delete", "cluster"}, args...)
+			myCmd := exec.Command("nkp", cmdArgs...)
+			if err := runCommand(myCmd, true); err != nil {
+				os.Exit(1)
+			}
+		}
+
 	},
 }
 
 func init() {
 	deleteCmd.AddCommand(deleteClusterCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// deleteClusterCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	deleteClusterCmd.Flags().StringP("cluster-name", "c", "", "Name used to prefix the cluster and all the created resources.")
-	deleteClusterCmd.MarkFlagRequired("cluster-name")
 }
