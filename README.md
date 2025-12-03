@@ -9,7 +9,7 @@ A command-line tool to create and manage Kubernetes NKP (Nutanix Kubernetes Plat
 ## Prerequisites
 
 - macOS with Apple container runtime installed
-- [Apple container runtime](https://github.com/apple/container) - Install and ensure it's running
+- [Apple container runtime](https://github.com/apple/container) 0.7.0+ - Install and ensure it's running
 - NKP CLI (`nkp`) installed and available in your PATH
 - Go 1.25.4 or later (for building from source)
 

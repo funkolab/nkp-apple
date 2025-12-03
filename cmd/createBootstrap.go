@@ -79,7 +79,7 @@ func createBootstrap() error {
 	myCmd = exec.Command("container", "run",
 		"-d",
 		"--name", nodeName,
-		"-m", "8G", "--disable-progress-updates",
+		"-m", "8G", "--progress", "none",
 		"-e", "KUBECONFIG=/etc/kubernetes/admin.conf",
 		"-p", "127.0.0.1:6443:6443",
 		fmt.Sprintf(nodeImage, nkpVersion),
